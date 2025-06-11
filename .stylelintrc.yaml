@@ -1,0 +1,9 @@
+extends:
+  - stylelint-config-standard
+  - stylelint-config-recommended-vue
+
+plugins:
+  - stylelint-use-nesting
+
+rules:
+  csstools/use-nesting: always
