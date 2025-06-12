@@ -1,12 +1,12 @@
 <script setup lang="ts">
 import { reactive, ref, useTemplateRef, toRaw, onMounted } from 'vue'
-import { Booklet, BookletPage } from "@millergeek/vue-library-printable-zine";
+import { Booklet, BookletPage, PrintSettings } from "@millergeek/vue-library-printable-zine";
 
 const savedBooks = ref(["default"])
 let opfsRoot
+const orientation = ref("landscape")
 
-onMounted(async () => {
-  opfsRoot = await navigator.storage.getDirectory()
+const loadBookList = async () => {
   await opfsRoot.getDirectoryHandle("default", { create: true })
   savedBooks.value = (await Array.fromAsync(
     opfsRoot.values(),
@@ -20,6 +20,11 @@ onMounted(async () => {
           return a - b
       }
   })
+}
+
+onMounted(async () => {
+  opfsRoot = await navigator.storage.getDirectory()
+  await loadBookList()
 })
 
 const bookName = ref("default")
@@ -27,50 +32,39 @@ const newBookName = ref("default")
 const pages = reactive(
   Array.from({ length: 8 }, (_x, i) => ({
   pageNumber: i+1,
-  imgData: ""
+  imgData: ref("")
 }))
 )
 
 const savePage = async (page) => {
-  console.log("Saving page"+page.pageNumber, page.imgData)
-  const dirHandle = await opfsRoot.getDirectoryHandle(bookName.value, { create: true })
-  console.log("Saving to directory: ", dirHandle.name)
+  const dirHandle = await opfsRoot.getDirectoryHandle(newBookName.value, { create: true })
   const fileHandle = await dirHandle.getFileHandle("page"+page.pageNumber, { create: true })
-  console.log("filename: ", fileHandle.name)
   const writable = await fileHandle.createWritable()
-  await writable.write(page.imgData)
+  await writable.write(page.imgData.value)
   await writable.close()
 }
 
 const loadPage = async (page) => {
-  console.log("Loading page"+page.pageNumber, page.imgData)
   const dirHandle = await opfsRoot.getDirectoryHandle(bookName.value, { create: true })
-  console.log("Loading from directory: ", dirHandle.name)
   try {
     const fileHandle = await dirHandle.getFileHandle("page"+page.pageNumber)
-  console.log("loading filename: ", fileHandle.name)
-  console.log("preLoad imgData: ", page.imgData)
-  page.imgData = await (await fileHandle.getFile()).text()
-  console.log("postLoad imgData: ", page.imgData)
+  page.imgData.value = await (await fileHandle.getFile()).text()
 
   } catch (e) {
-    console.error("File not found",e)
-    console.log("Clearing image data")
-    page.imgData = ""
-    console.log("Cleared image data")
+    console.debug("File not found",e)
+    page.imgData.value = ""
   }
 }
 
 const loadBook = () => {
   toRaw(pages).forEach(page => {loadPage(page)})
-  console.log("Setting newBookName to bookName")
   newBookName.value = bookName.value
-  console.log("bookName and newBookName have same value: ", bookName.value == newBookName.value);
 }
 
-const saveBook = () => {
-  bookName.value = newBookName.value
+const saveBook = async () => {
   toRaw(pages).forEach(page => {savePage(page)})
+  await loadBookList()
+  bookName.value = newBookName.value
 }
 
 const onFileChange = (page, event) => {
@@ -100,9 +94,9 @@ const onFileChange = (page, event) => {
     <button @click.stop="saveBook">Save</button>
 
     <br><br>
-    <!-- <button @click="bookletPrint" class="printButton">Print Booklet</button> -->
   </fieldset>
-  <Booklet>
+  <PrintSettings v-model="orientation"/>
+  <Booklet :orientation>
     <BookletPage
       v-for="(page, i) in pages"
       :pageNumber="i+1"
@@ -135,5 +129,8 @@ const onFileChange = (page, event) => {
   form, input {
     width: 100%;
   }
+}
+fieldset {
+  margin: 1em;
 }
 </style>
