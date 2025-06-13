@@ -1,9 +1,9 @@
 <script setup lang="ts">
-import { reactive, ref, useTemplateRef, toRaw, onMounted } from 'vue'
+import { reactive, ref, toRaw, onMounted } from 'vue'
 import { Booklet, BookletPage, PrintSettings } from "@millergeek/vue-library-printable-zine";
 
 const savedBooks = ref(["default"])
-let opfsRoot
+let opfsRoot:FileSystemDirectoryHandle
 const orientation = ref("landscape")
 
 const loadBookList = async () => {
@@ -103,7 +103,7 @@ const onFileChange = (page, event) => {
       :key="'bookPage'+(i+1)"
       :style="{backgroundImage: 'url(' + page.imgData + ')'}"
     >
-      <form @submit.prevent="onSubmit">
+      <form @submit.prevent>
         <input class="noPrint" accept="image/*" type='file' @change="onFileChange(page, $event)" name="test"/>
         <button class="noPrint" @click.stop="page.imgData = ''">Remove image</button>
       </form>
